@@ -1,17 +1,10 @@
-x, y, z = "Orange", "Banana", "Cherry"
-print(x)
-print(y)
-print(z)
+import re
 
 
-x = y = z = "Orange"
-print(x)
-print(y)
-print(z)
+text = input("Napishi: ")
 
+pattern = r'[ ,.]'
 
-fruits = ["apple", "banana", "cherry"]
-x, y, z = fruits
-print(x)
-print(y)
-print(z)
+replaced_text = re.sub(pattern, ':', text)
+
+print("after replace", replaced_text)

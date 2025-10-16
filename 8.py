@@ -1,38 +1,10 @@
-x = "awesome"
-
-def myfunc():
-  print("Python is " + x)
-
-myfunc()
+import re
 
 
-x = "awesome"
-
-def myfunc():
-  x = "fantastic"
-  print("Python is " + x)
-
-myfunc()
-
-print("Python is " + x)
+text = input("Napishi: ")
 
 
-
-def myfunc():
-  global x
-  x = "fantastic"
-
-myfunc()
-
-print("Python is " + x)
+result = re.findall(r'[A-Z][a-z]*', text)
 
 
-x = "awesome"
-
-def myfunc():
-  global x
-  x = "fantastic"
-
-myfunc()
-
-print("Python is " + x)
+print("itog", result)

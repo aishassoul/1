@@ -1,16 +1,11 @@
-x = int(1)   # x will be 1
-y = int(2.8) # y will be 2
-z = int("3") # z will be 3
+import re
+
+text = input("Enter a camelCase string: ")
 
 
-x = float(1)     # x will be 1.0
-y = float(2.8)   # y will be 2.8
-z = float("3")   # z will be 3.0
-w = float("4.2") # w will be 4.2
+snake_text = re.sub(r'([A-Z])', r'_\1', text).lower()
 
+if snake_text.startswith('_'):
+    snake_text = snake_text[1:]
 
-x = str("s1") # x will be 's1'
-y = str(2)    # y will be '2'
-z = str(3.0)  # z will be '3.0'
-
-
+print("Snake case string:", snake_text)

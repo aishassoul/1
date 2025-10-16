@@ -1,14 +1,12 @@
-if 5 > 2:
-  print("Five is greater than two!")
+import re
+
+text = input("Napishi: ")
 
 
-if 5 > 2:
- print("Five is greater than two!") 
-if 5 > 2:
-        print("Five is greater than two!") 
+pattern = r'^[a-z]+_[a-z]+$'
 
 
-x = 5
-y = "Hello, World!"
-
-#python syntax
+if re.fullmatch(pattern, text):
+    print("Match ")
+else:
+    print("No match")

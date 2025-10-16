@@ -1,21 +1,11 @@
-x = "Python is awesome"
-print(x)
+import re
 
+text = input("Enter a snake_case string: ")
 
-x = "Python"
-y = "is"
-z = "awesome"
-print(x, y, z)
+def snake_to_camel(snake_str):
+    parts = snake_str.split('_')
+    return parts[0] + ''.join(word.capitalize() for word in parts[1:])
 
-x = "Python "
-y = "is "
-z = "awesome"
-print(x + y + z)
+camel_text = snake_to_camel(text)
 
-x = 5
-y = 10
-print(x + y)
-
-x = 5
-y = "John"
-print(x, y)
+print("Camel case string:", camel_text)
