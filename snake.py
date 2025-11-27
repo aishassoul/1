@@ -1,91 +1,119 @@
-#импортируем нужные библиотеки
-import pygame, random, sys, time
+import pygame
+import random
+import sys
+import time
+import psycopg2
 
-pygame.init()  #запускаем pygame
+def connect_db():
+    conn = psycopg2.connect(
+        host="localhost",
+        port="5432",
+        database="snake",
+        user="aishassoul",
+        password=""
+    )
+    return conn
 
-#размеры окна
-SCREEN_WIDTH, SCREEN_HEIGHT = 620, 400
-BLOCK_SIZE = 20   #размер одного квадратика (сегмента змейки и еды)
-SPEED = 10        #начальная скорость игры
+def create_results_table():
+    conn = connect_db()
+    cur = conn.cursor()
 
-#цвета (RGB)
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS results (
+            id SERIAL PRIMARY KEY,
+            player_name VARCHAR(50),
+            score INT,
+            level INT,
+            played_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+
+    conn.commit()
+    cur.close()
+    conn.close()
+
+def save_result_to_db(player_name, score, level):
+    conn = connect_db()
+    cur = conn.cursor()
+
+    cur.execute(
+        "INSERT INTO results (player_name, score, level) VALUES (%s, %s, %s)",
+        (player_name, score, level)
+    )
+
+    conn.commit()
+    cur.close()
+    conn.close()
+
+pygame.init()
+
+SCREEN_WIDTH = 620
+SCREEN_HEIGHT = 400
+BLOCK_SIZE = 20
+START_SPEED = 10
+
 WHITE = (255, 255, 255)
 GREEN = (0, 255, 0)
-RED = (255, 0, 0)
-BLUE = (0, 0, 255)
+RED   = (255, 0, 0)
 BLACK = (0, 0, 0)
 
-#создаём окно игры
 screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
-pygame.display.set_caption("Змейка")  #заголовок окна
-
-#создаём шрифт для текста
+pygame.display.set_caption("Snake")
 font = pygame.font.Font(None, 30)
 
-#функция для вывода текста на экран
 def draw_text(text, x, y, color=WHITE):
-    text_surface = font.render(text, True, color)  #создаём текстовую поверхность
-    screen.blit(text_surface, (x, y))              #рисуем текст на экране по координатам (x, y)
+    img = font.render(text, True, color)
+    screen.blit(img, (x, y))
 
-#функция для генерации случайной еды (чтобы не появлялась на змейке)
 def generate_food(snake_body):
-    while True:  #бесконечный цикл пока не найдём место
-        #выбираем случайную клетку по сетке
+    while True:
         x = random.randint(0, (SCREEN_WIDTH - BLOCK_SIZE) // BLOCK_SIZE) * BLOCK_SIZE
         y = random.randint(0, (SCREEN_HEIGHT - BLOCK_SIZE) // BLOCK_SIZE) * BLOCK_SIZE
-        #проверяем — не совпадает ли с телом змейки
         if (x, y) not in snake_body:
-            return x, y  #возвращаем координаты еды
+            return x, y
 
-#рисуем змейку (каждый сегмент зелёным)
 def draw_snake(snake_body):
-    for segment in snake_body:
-        pygame.draw.rect(screen, GREEN, (segment[0], segment[1], BLOCK_SIZE, BLOCK_SIZE))
+    for x, y in snake_body:
+        pygame.draw.rect(screen, GREEN, (x, y, BLOCK_SIZE, BLOCK_SIZE))
 
-#рисуем еду (красный квадрат)
-def draw_food(food_position):
-    pygame.draw.rect(screen, RED, (food_position[0], food_position[1], BLOCK_SIZE, BLOCK_SIZE))
+def draw_food(food_pos):
+    pygame.draw.rect(screen, RED, (food_pos[0], food_pos[1], BLOCK_SIZE, BLOCK_SIZE))
 
-#основная функция игры
-def game():
-    #стартовая змейка (из 3 квадратиков)
-    snake = [(100, 100), (90, 100), (80, 100)]
-    direction = "RIGHT"  #направление движения
-    food = generate_food(snake)  #создаём первую еду
-    score = 0  #счёт
-    level = 1  #уровень
-    speed = SPEED  #текущая скорость
+def game(player_name):
+    snake = [(100, 100), (80, 100), (60, 100)]
+    direction = "RIGHT"
 
-    clock = pygame.time.Clock()  #создаём таймер
-    running = True               #флаг, чтобы игра шла
+    food = generate_food(snake)
+    food_value = random.randint(1, 3)
+    food_spawn_time = pygame.time.get_ticks()
+
+    score = 0
+    level = 1
+    speed = START_SPEED
+
+    clock = pygame.time.Clock()
+    running = True
 
     while running:
-        screen.fill(BLACK)  #очищаем экран (чёрный фон)
+        screen.fill(BLACK)
 
-        #обрабатываем все события (клавиши и выход)
         for event in pygame.event.get():
-            if event.type == pygame.QUIT:  #если нажали на крестик
+            if event.type == pygame.QUIT:
                 running = False
                 pygame.quit()
                 sys.exit()
-            elif event.type == pygame.KEYDOWN:  #если нажали клавишу
-                #движение вверх (если не идём вниз)
+            elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_UP and direction != "DOWN":
                     direction = "UP"
-                #движение вниз (если не идём вверх)
                 elif event.key == pygame.K_DOWN and direction != "UP":
                     direction = "DOWN"
-                #движение влево (если не идём вправо)
                 elif event.key == pygame.K_LEFT and direction != "RIGHT":
                     direction = "LEFT"
-                #движение вправо (если не идём влево)
                 elif event.key == pygame.K_RIGHT and direction != "LEFT":
                     direction = "RIGHT"
 
-        #координаты головы змейки (первая часть списка)
         head_x, head_y = snake[0]
 
-        #меняем координаты головы в зависимости от направления
         if direction == "UP":
             head_y -= BLOCK_SIZE
         elif direction == "DOWN":
@@ -95,49 +123,55 @@ def game():
         elif direction == "RIGHT":
             head_x += BLOCK_SIZE
 
-        #проверка на удар о стену если выходим за границы экрана
+        
+
         if head_x < 0 or head_x >= SCREEN_WIDTH or head_y < 0 or head_y >= SCREEN_HEIGHT:
-            running = False  #заканчиваем игру
+            running = False
 
-        #проверка на удар о себя (если голова совпадает с любой частью тела)
         if (head_x, head_y) in snake:
-            running = False  #заканчиваем игру
+            running = False
 
-        #добавляем новую голову змейки в начало
         snake.insert(0, (head_x, head_y))
 
-        #проверяем, съела ли змейка еду
+        now = pygame.time.get_ticks()
+        if now - food_spawn_time > 3000:
+            food = generate_food(snake)
+            food_value = random.randint(1, 3)
+            food_spawn_time = pygame.time.get_ticks()
+
         if (head_x, head_y) == food:
-            score += 1  #добавляем очко
-            food = generate_food(snake)  #создаём новую еду
-            #каждые 3 очка новый уровень и ускорение
+            score += food_value
+            food = generate_food(snake)
+            food_value = random.randint(1, 3)
+            food_spawn_time = pygame.time.get_ticks()
+
             if score % 3 == 0:
                 level += 1
                 speed += 2
         else:
-            snake.pop()  #удаляем хвост (если не съела)
+            snake.pop()
 
-        #рисуем змейку
         draw_snake(snake)
-        #рисуем еду
         draw_food(food)
+        draw_text(str(food_value), food[0] + 3, food[1] - 18, WHITE)
 
-        #рисуем текст (счёт и уровень)
-        draw_text(f"Счет: {score}", 10, 10)
-        draw_text(f"Уровень: {level}", 500, 10)
+        draw_text(f"счёт: {score}", 10, 10)
+        draw_text(f"уровень: {level}", 500, 10)
 
-        #обновляем экран
         pygame.display.update()
-        #ограничиваем скорость (чтобы игра не шла слишком быстро)
         clock.tick(speed)
 
-    #если проиграли, показываем сообщение
     screen.fill(BLACK)
-    draw_text("Вы проиграли!", SCREEN_WIDTH // 2 - 60, SCREEN_HEIGHT // 2 - 10, RED)
+    draw_text("вы проиграли", SCREEN_WIDTH // 2 - 60, SCREEN_HEIGHT // 2 - 10, RED)
     pygame.display.update()
-    time.sleep(2)  #ждём 2 секунды
+    time.sleep(2)
+
+    save_result_to_db(player_name, score, level)
+
+if __name__ == "__main__":
+    create_results_table()
+    name = input("enter your name: ").strip()
+    
+    game(name)
     pygame.quit()
     sys.exit()
-
-#запускаем игру
-game()
