@@ -1,0 +1,228 @@
+import psycopg2
+import csv
+
+
+def get_connection():
+    conn = psycopg2.connect(
+        host="localhost",
+        port="5432",
+        database="phonebook",
+        user="aishassoul",
+        password=""
+    )
+    return conn
+
+def create_table():
+    conn = get_connection()
+    cur = conn.cursor()
+
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS phonebook (
+            id SERIAL PRIMARY KEY,
+            first_name VARCHAR(50),
+            last_name  VARCHAR(50),
+            phone      VARCHAR(20) UNIQUE
+        );
+    """)
+
+    conn.commit()
+    cur.close()
+    conn.close()
+
+
+def insert_from_console():
+    print("\nAdd new contact:")
+    first_name = input("First name: ").strip()
+    last_name = input("Last name: ").strip()
+    phone = input("Phone number: ").strip()
+
+    conn = get_connection()
+    cur = conn.cursor()
+
+    try:
+        cur.execute(
+            "INSERT INTO phonebook (first_name, last_name, phone) VALUES (%s, %s, %s)",
+            (first_name, last_name if last_name != "" else None, phone)
+        )
+        conn.commit()
+        print("Contact added.")
+    except Exception as e:
+        print("Error:", e)
+        conn.rollback()
+    finally:
+        cur.close()
+        conn.close()
+
+
+def insert_from_csv():
+    print("\nLoad contacts from CSV file")
+    path = input("Enter file name (e.g., phonebook.csv): ").strip()
+
+    conn = get_connection()
+    cur = conn.cursor()
+
+    try:
+        with open(path, newline="", encoding="utf-8") as f:
+            reader = csv.DictReader(f)
+
+            for row in reader:
+                first_name = row["first_name"].strip()
+                last_name = row.get("last_name", "").strip()
+                phone = row["phone"].strip()
+
+                try:
+                    cur.execute(
+                        "INSERT INTO phonebook (first_name, last_name, phone) VALUES (%s, %s, %s)",
+                        (first_name, last_name if last_name != "" else None, phone)
+                    )
+                except:
+                    conn.rollback()
+                    print("Phone already exists, skipping:", phone)
+
+        conn.commit()
+        print("CSV loaded.")
+    except FileNotFoundError:
+        print("File not found:", path)
+    except Exception as e:
+        print("Error:", e)
+        conn.rollback()
+    finally:
+        cur.close()
+        conn.close()
+
+
+def query_contacts():
+    print("\nSearch contacts:")
+    pattern = input("Enter part of name, surname, or phone number: ").strip()
+
+    conn = get_connection()
+    cur = conn.cursor()
+
+    try:
+        cur.execute("""
+            SELECT * FROM phonebook
+            WHERE first_name LIKE %s OR last_name LIKE %s OR phone LIKE %s
+            ORDER BY id;
+        """, (f"%{pattern}%", f"%{pattern}%", f"%{pattern}%"))
+        rows = cur.fetchall()
+
+        if not rows:
+            print("No contacts found.")
+        else:
+            for row in rows:
+                print("\nID:", row[0])
+                print("First name:", row[1])
+                print("Last name:", row[2])
+                print("Phone:", row[3])
+
+    except Exception as e:
+        print("Error:", e)
+    finally:
+        cur.close()
+        conn.close()
+
+
+def delete_contact():
+    print("\nDelete contact:")
+    print("1) by first name")
+    print("2) by phone")
+    choice = input("Choose: ").strip()
+
+    conn = get_connection()
+    cur = conn.cursor()
+
+    try:
+        if choice == "1":
+            name = input("Enter first name: ").strip()
+            cur.execute("DELETE FROM phonebook WHERE first_name=%s", (name,))
+        elif choice == "2":
+            phone = input("Enter phone number: ").strip()
+            cur.execute("DELETE FROM phonebook WHERE phone=%s", (phone,))
+        else:
+            print("Wrong option.")
+            return
+
+        if cur.rowcount == 0:
+            print("Nothing deleted.")
+        else:
+            conn.commit()
+            print("Contact deleted.")
+
+    except Exception as e:
+        print("Error:", e)
+        conn.rollback()
+    finally:
+        cur.close()
+        conn.close()
+
+def update_contact():
+    print("\nUpdate contact:")
+    old_phone = input("Enter current phone number: ").strip()
+
+    print("What do you want to change?")
+    print("1) First name")
+    print("2) Last name")
+    print("3) Phone number")
+    choice = input("Choose 1, 2 or 3: ").strip()
+
+    conn = get_connection()
+    cur = conn.cursor()
+
+    try:
+        if choice == "1":
+            new_first_name = input("New first name: ").strip()
+            cur.execute("UPDATE phonebook SET first_name = %s WHERE phone = %s", (new_first_name, old_phone))
+        elif choice == "2":
+            new_last_name = input("New last name: ").strip()
+            cur.execute("UPDATE phonebook SET last_name = %s WHERE phone = %s", (new_last_name, old_phone))
+        elif choice == "3":
+            new_phone = input("New phone number: ").strip()
+            cur.execute("UPDATE phonebook SET phone = %s WHERE phone = %s", (new_phone, old_phone))
+        else:
+            print("Wrong option.")
+            return
+
+        if cur.rowcount == 0:
+            print("Contact not found.")
+        else:
+            conn.commit()
+            print("Contact updated successfully.")
+    except Exception as e:
+        print("Error:", e)
+        conn.rollback()
+    finally:
+        cur.close()
+        conn.close()
+
+def main():
+    create_table()
+
+    while True:
+        print("\nPhoneBook Menu")
+        print("1) Add contact")
+        print("2) Load from CSV")
+        print("3) Update contact")
+        print("4) Search contacts")
+        print("5) Delete contact")
+        print("0) Exit")
+
+        option = input("Choose: ").strip()
+
+        if option == "1":
+            insert_from_console()
+        elif option == "2":
+            insert_from_csv()
+        elif option == "3":
+            update_contact()
+        elif option == "4":
+            query_contacts()
+        elif option == "5":
+            delete_contact()
+        elif option == "0":
+            print("Bye!")
+            break
+        else:
+            print("Wrong menu option")
+
+if __name__ == "__main__":
+    main()
